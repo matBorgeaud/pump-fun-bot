@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    image: ghcr.io/ton-utilisateur/ton-repo:latest # Utiliser GitHub Container Registry
     container_name: pump_fun_app
     restart: always
     env_file: .env
