@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: ghcr.io/matBorgeaud/pump-fun-bot:latest # Utiliser GitHub Container Registry
+    image: ghcr.io/matborgeaud/pump-fun-bot:latest # Utiliser GitHub Container Registry
     container_name: pump_fun_app
     restart: always
     env_file: .env
