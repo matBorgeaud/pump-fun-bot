@@ -68,9 +68,13 @@ bot.onText(/\/ignore (.+)/, async (msg, match) => {
     console.log(`/ignore command received from ${chatId} for account ${account}`);
 
     try {
-        // Logique pour ignorer les alertes pour le compte spécifié
-        // Vous pouvez ajouter une logique pour stocker les comptes ignorés dans la base de données
-        bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${account}.`);
+        const user = await User.findOne({ chatId });
+        if (user) {
+            user.ignoredAccounts.push(account);
+            await user.save();
+            console.log(`Compte ignoré ajouté pour ${chatId} : ${account}`);
+            bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${account}.`);
+        }
     } catch (error) {
         console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
         bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
@@ -78,13 +82,25 @@ bot.onText(/\/ignore (.+)/, async (msg, match) => {
 });
 
 // Fonction pour envoyer une alerte à tous les utilisateurs
-const sendTelegramAlert = async (message) => {
+const sendTelegramAlert = async (message, telegram, twitter) => {
     console.log(`Envoi d'une alerte : ${message}`);
     try {
         const users = await User.find();
         for (const user of users) {
+            // Vérifier si l'utilisateur a ignoré ce compte
+            if (user.ignoredAccounts.includes(telegram) || user.ignoredAccounts.includes(twitter)) {
+                continue;
+            }
+
             console.log(`Envoi d'une alerte à ${user.chatId}`);
-            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte, utilisez la commande /ignore <compte>`);
+            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte, utilisez la commande /ignore <compte>`, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: `Ignorer ${telegram}`, callback_data: `ignore_${telegram}` }],
+                        [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }]
+                    ]
+                }
+            });
             console.log(`Réponse de Telegram : ${JSON.stringify(response)}`);
         }
     } catch (error) {
@@ -106,7 +122,7 @@ const fetchAndStoreData = async () => {
 
         if (existingAlert) {
             console.log("🚨 Doublon détecté !");
-            sendTelegramAlert(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`);
+            sendTelegramAlert(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
         }
 
         // Stocker la nouvelle donnée
