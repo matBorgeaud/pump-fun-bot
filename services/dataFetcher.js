@@ -81,6 +81,27 @@ bot.onText(/\/ignore (.+)/, async (msg, match) => {
     }
 });
 
+// Commande /setthreshold pour définir le seuil de doublons
+bot.onText(/\/setthreshold (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const threshold = parseInt(match[1], 10);
+
+    console.log(`/setthreshold command received from ${chatId} with threshold ${threshold}`);
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            user.duplicateThreshold = threshold;
+            await user.save();
+            console.log(`Seuil de doublons mis à jour pour ${chatId} : ${threshold}`);
+            bot.sendMessage(chatId, `🔢 Seuil de doublons mis à jour à ${threshold}.`);
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de la mise à jour du seuil de doublons :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
+
 // Fonction pour envoyer une alerte à tous les utilisateurs
 const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
     console.log(`Envoi d'une alerte : ${message}`);
@@ -116,13 +137,19 @@ const fetchAndStoreData = async () => {
         if (!telegram && !twitter) return;
 
         // Vérifie si une alerte existe déjà
-        const existingAlert = await Alert.findOne({ 
+        const existingAlerts = await Alert.find({ 
             $or: [{ telegram }, { twitter }] 
         });
 
-        if (existingAlert) {
-            console.log("🚨 Doublon détecté !");
-            sendTelegramAlertToUsers(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
+        if (existingAlerts.length > 0) {
+            const users = await User.find();
+            for (const user of users) {
+                const threshold = user.duplicateThreshold || 1;
+                if (existingAlerts.length >= threshold) {
+                    console.log(`🚨 Doublon détecté pour ${user.chatId} avec seuil ${threshold} !`);
+                    sendTelegramAlertToUsers(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
+                }
+            }
         }
 
         // Stocker la nouvelle donnée
