@@ -2,14 +2,25 @@ version: '3.8'
 
 services:
   app:
-    image: ghcr.io/matborgeaud/pump-fun-bot:latest # Utiliser GitHub Container Registry
+    image: ghcr.io/matborgeaud/pump-fun-bot:latest
     container_name: pump_fun_app
     restart: always
-    env_file: .env
+    environment:
+      API_FETCH_INTERVAL: ${API_FETCH_INTERVAL}
+      DATA_RETENTION_HOURS: ${DATA_RETENTION_HOURS}
+      ALERT_DUPLICATE_THRESHOLD: ${ALERT_DUPLICATE_THRESHOLD}
+      API_URL: ${API_URL}
+      MONGO_URI: ${MONGO_URI}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      PORT: ${PORT}
     depends_on:
       - mongo
     networks:
       - app_network
+    ports:
+      - "${PORT}:${PORT}"
 
   mongo:
     image: mongo:latest
