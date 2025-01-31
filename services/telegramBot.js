@@ -56,14 +56,80 @@ bot.onText(/\/stop/, async (msg) => {
     }
 });
 
+// Commande /ignore pour ignorer les alertes pour un compte spécifique
+bot.onText(/\/ignore (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const account = match[1];
+
+    console.log(`/ignore command received from ${chatId} for account ${account}`);
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            user.ignoredAccounts.push(account);
+            await user.save();
+            console.log(`Compte ignoré ajouté pour ${chatId} : ${account}`);
+            bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${account}.`);
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
+
+// Commande /setthreshold pour définir le seuil de doublons
+bot.onText(/\/setthreshold (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const threshold = parseInt(match[1], 10);
+
+    console.log(`/setthreshold command received from ${chatId} with threshold ${threshold}`);
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            console.log(`User found: ${user.username} (${user.chatId})`);
+            user.duplicateThreshold = threshold;
+            await user.save();
+            console.log(`Seuil de doublons mis à jour pour ${chatId} : ${threshold}`);
+            bot.sendMessage(chatId, `🔢 Seuil de doublons mis à jour à ${threshold}.`);
+        } else {
+            console.log(`User not found: ${chatId}`);
+            bot.sendMessage(chatId, "⚠️ Utilisateur non trouvé.");
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de la mise à jour du seuil de doublons :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
+
 // Fonction pour envoyer une alerte à tous les utilisateurs
-const sendTelegramAlert = async (message) => {
+const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
     console.log(`Envoi d'une alerte : ${message}`);
+
+    // Vérifier si le message contient une URL de statut
+    const statusUrlPattern = /https:\/\/x\.com\/\w+\/status\/\d+/;
+    if (statusUrlPattern.test(message)) {
+        console.log("🔕 Alerte ignorée car elle contient une URL de statut.");
+        return;
+    }
+
     try {
         const users = await User.find();
         for (const user of users) {
+            // Vérifier si l'utilisateur a ignoré ce compte
+            if (user.ignoredAccounts.includes(telegram) || user.ignoredAccounts.includes(twitter)) {
+                continue;
+            }
+
             console.log(`Envoi d'une alerte à ${user.chatId}`);
-            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}`);
+            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte, utilisez la commande /ignore <compte>`, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: `Ignorer ${telegram}`, callback_data: `ignore_${telegram}` }],
+                        [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }]
+                    ]
+                }
+            });
             console.log(`Réponse de Telegram : ${JSON.stringify(response)}`);
         }
     } catch (error) {
@@ -71,4 +137,4 @@ const sendTelegramAlert = async (message) => {
     }
 };
 
-module.exports = { bot, sendTelegramAlert };
+module.exports = { bot, sendTelegramAlertToUsers };
