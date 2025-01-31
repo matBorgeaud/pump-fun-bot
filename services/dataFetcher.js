@@ -82,7 +82,7 @@ bot.onText(/\/ignore (.+)/, async (msg, match) => {
 });
 
 // Fonction pour envoyer une alerte à tous les utilisateurs
-const sendTelegramAlert = async (message, telegram, twitter) => {
+const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
     console.log(`Envoi d'une alerte : ${message}`);
     try {
         const users = await User.find();
@@ -122,7 +122,7 @@ const fetchAndStoreData = async () => {
 
         if (existingAlert) {
             console.log("🚨 Doublon détecté !");
-            sendTelegramAlert(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
+            sendTelegramAlertToUsers(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
         }
 
         // Stocker la nouvelle donnée
@@ -133,4 +133,4 @@ const fetchAndStoreData = async () => {
     }
 };
 
-module.exports = { fetchAndStoreData, bot, sendTelegramAlert };
+module.exports = { fetchAndStoreData, bot, sendTelegramAlertToUsers };
