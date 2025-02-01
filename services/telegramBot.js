@@ -143,7 +143,7 @@ bot.onText(/\/setthreshold (\d+)/, async (msg, match) => {
     }
 });
 
-// Fonction pour envoyer une alerte à tous les utilisateurs
+// Fonction pour envoyer une alerte à tous les utilisateurs avec gestion de la limitation de débit
 const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
     console.log(`Envoi d'une alerte : ${message}`);
 
@@ -156,17 +156,27 @@ const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
             }
 
             console.log(`Envoi d'une alerte à ${user.chatId}`);
-            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte ou cette communauté, utilisez la commande /ignore <compte ou communauté>`, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: `Ignorer ${telegram}`, callback_data: `ignore_${telegram}` }],
-                        [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }],
-                        [{ text: `Ignorer les statuts`, callback_data: `ignore_status` }],
-                        [{ text: `Ignorer les communautés`, callback_data: `ignore_communities` }]
-                    ]
+            try {
+                const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte ou cette communauté, utilisez la commande /ignore <compte ou communauté>`, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: `Ignorer ${telegram}`, callback_data: `ignore_${telegram}` }],
+                            [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }],
+                            [{ text: `Ignorer les statuts`, callback_data: `ignore_status` }],
+                            [{ text: `Ignorer les communautés`, callback_data: `ignore_communities` }]
+                        ]
+                    }
+                });
+                console.log(`Réponse de Telegram : ${JSON.stringify(response)}`);
+            } catch (error) {
+                if (error.code === 'ETELEGRAM' && error.response && error.response.statusCode === 429) {
+                    const retryAfter = error.response.body.parameters.retry_after;
+                    console.log(`Rate limit hit. Retrying after ${retryAfter} seconds.`);
+                    await new Promise(resolve => setTimeout(resolve, (retryAfter + 1) * 1000));
+                } else {
+                    throw error;
                 }
-            });
-            console.log(`Réponse de Telegram : ${JSON.stringify(response)}`);
+            }
         }
     } catch (error) {
         console.error("❌ Erreur lors de l'envoi de l'alerte :", error);
