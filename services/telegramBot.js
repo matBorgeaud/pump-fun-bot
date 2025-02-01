@@ -163,8 +163,6 @@ const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
                         inline_keyboard: [
                             [{ text: `Ignorer ${telegram}`, callback_data: `ignore_${telegram}` }],
                             [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }],
-                            [{ text: `Ignorer les statuts`, callback_data: `ignore_status` }],
-                            [{ text: `Ignorer les communautés`, callback_data: `ignore_communities` }]
                         ]
                     }
                 });

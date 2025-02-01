@@ -18,6 +18,9 @@ const fetchAndStoreData = async () => {
             $or: [{ telegram }, { twitter }] 
         });
 
+        // Stocker la nouvelle donnée
+        await Alert.create({ telegram, twitter });
+
         if (existingAlerts.length > 0) {
             const users = await User.find();
             for (const user of users) {
@@ -28,10 +31,6 @@ const fetchAndStoreData = async () => {
                 }
             }
         }
-
-        // Stocker la nouvelle donnée
-        await Alert.create({ telegram, twitter });
-
     } catch (error) {
         console.error("❌ Erreur lors de la récupération des données :", error.message);
     }
