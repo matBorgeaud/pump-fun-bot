@@ -14,12 +14,9 @@ const fetchAndStoreData = async () => {
         if (!telegram && !twitter) return;
 
         // Vérifie si une alerte existe déjà
-        const query = {};
-        if (telegram) query.telegram = telegram;
-        if (twitter) query.twitter = twitter;
-        
-        const existingAlerts = await Alert.find({ $or: [query] });
-        
+        const existingAlerts = await Alert.find({ 
+            $or: [{ telegram }, { twitter }] 
+        });
 
         // Stocker la nouvelle donnée
         await Alert.create({ telegram, twitter });

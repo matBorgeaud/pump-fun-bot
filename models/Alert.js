@@ -6,4 +6,5 @@ const alertSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now, expires: '24h' } // Auto suppression après 24h
 });
 
+
 module.exports = mongoose.model("Alert", alertSchema);
