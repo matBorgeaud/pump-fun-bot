@@ -56,23 +56,64 @@ bot.onText(/\/stop/, async (msg) => {
     }
 });
 
-// Commande /ignore pour ignorer les alertes pour un compte spécifique
+// Commande /ignore pour ignorer les alertes pour un compte ou une communauté spécifique
 bot.onText(/\/ignore (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const account = match[1];
+    const accountOrCommunity = match[1];
 
-    console.log(`/ignore command received from ${chatId} for account ${account}`);
+    console.log(`/ignore command received from ${chatId} for ${accountOrCommunity}`);
 
     try {
         const user = await User.findOne({ chatId });
         if (user) {
-            user.ignoredAccounts.push(account);
+            user.ignoredAccounts.push(accountOrCommunity);
             await user.save();
-            console.log(`Compte ignoré ajouté pour ${chatId} : ${account}`);
-            bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${account}.`);
+            console.log(`Compte ou communauté ignoré ajouté pour ${chatId} : ${accountOrCommunity}`);
+            bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${accountOrCommunity}.`);
         }
     } catch (error) {
         console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
+
+// Commande /ignore communities pour ignorer toutes les communautés
+bot.onText(/\/ignore_communities/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    console.log(`/ignore_communities command received from ${chatId}`);
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            user.ignoredAccounts.push("communities");
+            await user.save();
+            console.log(`Toutes les communautés ignorées pour ${chatId}`);
+            bot.sendMessage(chatId, "🔕 Vous ne recevrez plus d'alertes pour toutes les communautés.");
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de l'ignorance des communautés :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
+
+// Commande /unignore pour ne plus ignorer les alertes pour un compte ou une communauté spécifique
+bot.onText(/\/unignore (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const accountOrCommunity = match[1];
+
+    console.log(`/unignore command received from ${chatId} for ${accountOrCommunity}`);
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            user.ignoredAccounts = user.ignoredAccounts.filter(acc => acc !== accountOrCommunity);
+            await user.save();
+            console.log(`Compte ou communauté ignoré retiré pour ${chatId} : ${accountOrCommunity}`);
+            bot.sendMessage(chatId, `🔔 Vous recevrez à nouveau des alertes pour ${accountOrCommunity}.`);
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de la suppression de l'ignorance de l'alerte :", error);
         bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
     }
 });
@@ -106,27 +147,22 @@ bot.onText(/\/setthreshold (\d+)/, async (msg, match) => {
 const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
     console.log(`Envoi d'une alerte : ${message}`);
 
-    // Vérifier si le message contient une URL de statut
-    const statusUrlPattern = /https:\/\/x\.com\/\w+\/status\/\d+/;
-    if (statusUrlPattern.test(message)) {
-        console.log("🔕 Alerte ignorée car elle contient une URL de statut.");
-        return;
-    }
-
     try {
         const users = await User.find();
         for (const user of users) {
-            // Vérifier si l'utilisateur a ignoré ce compte
-            if (user.ignoredAccounts.includes(telegram) || user.ignoredAccounts.includes(twitter)) {
+            // Vérifier si l'utilisateur a ignoré ce compte, les statuts ou les communautés
+            if (user.ignoredAccounts.includes(telegram) || user.ignoredAccounts.includes(twitter) || user.ignoredAccounts.includes("status") || user.ignoredAccounts.includes("communities") || user.ignoredAccounts.some(acc => message.includes(acc))) {
                 continue;
             }
 
             console.log(`Envoi d'une alerte à ${user.chatId}`);
-            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte, utilisez la commande /ignore <compte>`, {
+            const response = await bot.sendMessage(user.chatId, `🚨 ALERTE : ${message}\n\nPour ignorer les alertes pour ce compte ou cette communauté, utilisez la commande /ignore <compte ou communauté>`, {
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: `Ignorer ${telegram}`, callback_data: `ignore_${telegram}` }],
-                        [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }]
+                        [{ text: `Ignorer ${twitter}`, callback_data: `ignore_${twitter}` }],
+                        [{ text: `Ignorer les statuts`, callback_data: `ignore_status` }],
+                        [{ text: `Ignorer les communautés`, callback_data: `ignore_communities` }]
                     ]
                 }
             });
@@ -136,5 +172,28 @@ const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
         console.error("❌ Erreur lors de l'envoi de l'alerte :", error);
     }
 };
+
+// Gestion des callbacks pour les boutons d'ignorance
+bot.on("callback_query", async (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const chatId = msg.chat.id;
+    const data = callbackQuery.data;
+
+    const accountToIgnore = data.split("_")[1];
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            if (data.startsWith("ignore_")) {
+                user.ignoredAccounts.push(accountToIgnore);
+                await user.save();
+                bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${accountToIgnore}.`);
+            }
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
 
 module.exports = { bot, sendTelegramAlertToUsers };
