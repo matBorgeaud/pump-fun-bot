@@ -151,7 +151,8 @@ const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
         const users = await User.find();
         for (const user of users) {
             // Vérifier si l'utilisateur a ignoré ce compte, les statuts ou les communautés
-            if (user.ignoredAccounts.includes(telegram) || user.ignoredAccounts.includes(twitter) || user.ignoredAccounts.includes("status") || user.ignoredAccounts.includes("communities") || user.ignoredAccounts.some(acc => message.includes(acc))) {
+            const communityUrlPattern = /https:\/\/x\.com\/i\/communities\/\d+/;
+            if (user.ignoredAccounts.includes(telegram) || user.ignoredAccounts.includes(twitter) || user.ignoredAccounts.includes("status") || (user.ignoredAccounts.includes("communities") && communityUrlPattern.test(message)) || user.ignoredAccounts.some(acc => message.includes(acc))) {
                 continue;
             }
 
