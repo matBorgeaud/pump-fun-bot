@@ -240,7 +240,7 @@ bot.on("callback_query", async (callbackQuery) => {
                 }
 
                 const inlineKeyboard = ignoredAccounts.map(account => [
-                    { text: `Unignore ${account}`, callback_data: `unignore_${account}` }
+                    { text: `Unignore ${account}`, callback_data: `unignore_${account.slice(0, 50)}` }
                 ]);
 
                 bot.sendMessage(chatId, "🔕 Comptes ignorés :", {
