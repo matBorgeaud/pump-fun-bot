@@ -229,22 +229,6 @@ bot.on("callback_query", async (callbackQuery) => {
     const chatId = msg.chat.id;
     const data = callbackQuery.data;
 
-    const accountToIgnore = data.split("_")[1];
-
-    try {
-        const user = await User.findOne({ chatId });
-        if (user) {
-            if (data.startsWith("ignore_")) {
-                user.ignoredAccounts.push(accountToIgnore);
-                await user.save();
-                bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${accountToIgnore}.`);
-            }
-        }
-    } catch (error) {
-        console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
-        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
-    }
-
     if (data === "view_ignored_accounts") {
         try {
             const user = await User.findOne({ chatId });
@@ -269,6 +253,20 @@ bot.on("callback_query", async (callbackQuery) => {
             }
         } catch (error) {
             console.error("❌ Erreur lors de la récupération des comptes ignorés :", error);
+            bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+        }
+    } else if (data.startsWith("ignore_")) {
+        const accountToIgnore = data.split("_")[1];
+
+        try {
+            const user = await User.findOne({ chatId });
+            if (user) {
+                user.ignoredAccounts.push(accountToIgnore);
+                await user.save();
+                bot.sendMessage(chatId, `🔕 Vous ne recevrez plus d'alertes pour ${accountToIgnore}.`);
+            }
+        } catch (error) {
+            console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
             bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
         }
     } else if (data.startsWith("unignore_")) {
