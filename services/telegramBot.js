@@ -15,6 +15,39 @@ const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
 console.log("✅ Bot démarré avec succès.");
 
+// Commande /settings pour afficher les paramètres de l'utilisateur
+bot.onText(/\/settings/, async (msg) => {
+    const chatId = msg.chat.id;
+
+    console.log(`/settings command received from ${chatId}`);
+
+    try {
+        const user = await User.findOne({ chatId });
+        if (user) {
+            const ignoredCount = user.ignoredAccounts.length;
+            const settingsMessage = `🔧 Vos paramètres :
+- Seuil Telegram : ${user.telegramThreshold}
+- Seuil Twitter : ${user.twitterThreshold}
+- Comptes ignorés : ${ignoredCount}`;
+
+            const inlineKeyboard = [
+                [{ text: "Voir les comptes ignorés", callback_data: "view_ignored_accounts" }]
+            ];
+
+            bot.sendMessage(chatId, settingsMessage, {
+                reply_markup: {
+                    inline_keyboard: inlineKeyboard
+                }
+            });
+        } else {
+            bot.sendMessage(chatId, "⚠️ Utilisateur non trouvé.");
+        }
+    } catch (error) {
+        console.error("❌ Erreur lors de la récupération des paramètres :", error);
+        bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+});
+
 // Commande /start pour inscrire l'utilisateur
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
@@ -210,6 +243,48 @@ bot.on("callback_query", async (callbackQuery) => {
     } catch (error) {
         console.error("❌ Erreur lors de l'ignorance de l'alerte :", error);
         bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+    }
+
+    if (data === "view_ignored_accounts") {
+        try {
+            const user = await User.findOne({ chatId });
+            if (user) {
+                const ignoredAccounts = user.ignoredAccounts;
+                if (ignoredAccounts.length === 0) {
+                    bot.sendMessage(chatId, "🔕 Aucun compte ignoré.");
+                    return;
+                }
+
+                const inlineKeyboard = ignoredAccounts.map(account => [
+                    { text: `Unignore ${account}`, callback_data: `unignore_${account}` }
+                ]);
+
+                bot.sendMessage(chatId, "🔕 Comptes ignorés :", {
+                    reply_markup: {
+                        inline_keyboard: inlineKeyboard
+                    }
+                });
+            } else {
+                bot.sendMessage(chatId, "⚠️ Utilisateur non trouvé.");
+            }
+        } catch (error) {
+            console.error("❌ Erreur lors de la récupération des comptes ignorés :", error);
+            bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+        }
+    } else if (data.startsWith("unignore_")) {
+        const accountToUnignore = data.split("_")[1];
+
+        try {
+            const user = await User.findOne({ chatId });
+            if (user) {
+                user.ignoredAccounts = user.ignoredAccounts.filter(acc => acc !== accountToUnignore);
+                await user.save();
+                bot.sendMessage(chatId, `🔔 Vous recevrez à nouveau des alertes pour ${accountToUnignore}.`);
+            }
+        } catch (error) {
+            console.error("❌ Erreur lors de la suppression de l'ignorance de l'alerte :", error);
+            bot.sendMessage(chatId, "⚠️ Une erreur s'est produite.");
+        }
     }
 });
 
