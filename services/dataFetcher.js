@@ -19,7 +19,6 @@ const fetchAndStoreData = async () => {
         if (twitter) query.twitter = twitter;
         
         const existingAlerts = await Alert.find({ $or: [query] });
-        
 
         // Stocker la nouvelle donnée
         await Alert.create({ telegram, twitter });
@@ -27,9 +26,11 @@ const fetchAndStoreData = async () => {
         if (existingAlerts.length > 0) {
             const users = await User.find();
             for (const user of users) {
-                const threshold = user.duplicateThreshold || 1;
-                if (existingAlerts.length >= threshold) {
-                    console.log(`🚨 Doublon détecté pour ${user.chatId} avec seuil ${threshold} !`);
+                const telegramThreshold = user.telegramThreshold || 1;
+                const twitterThreshold = user.twitterThreshold || 1;
+                if ((telegram && existingAlerts.filter(alert => alert.telegram === telegram).length >= telegramThreshold) ||
+                    (twitter && existingAlerts.filter(alert => alert.twitter === twitter).length >= twitterThreshold)) {
+                    console.log(`🚨 Doublon détecté pour ${user.chatId} avec seuil Telegram ${telegramThreshold} et Twitter ${twitterThreshold} !`);
                     sendTelegramAlertToUsers(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
                 }
             }

@@ -119,20 +119,28 @@ bot.onText(/\/unignore (.+)/, async (msg, match) => {
 });
 
 // Commande /setthreshold pour définir le seuil de doublons
-bot.onText(/\/setthreshold (\d+)/, async (msg, match) => {
+bot.onText(/\/setthreshold (\w+) (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const threshold = parseInt(match[1], 10);
+    const platform = match[1].toLowerCase();
+    const threshold = parseInt(match[2], 10);
 
-    console.log(`/setthreshold command received from ${chatId} with threshold ${threshold}`);
+    console.log(`/setthreshold command received from ${chatId} for ${platform} with threshold ${threshold}`);
 
     try {
         const user = await User.findOne({ chatId });
         if (user) {
             console.log(`User found: ${user.username} (${user.chatId})`);
-            user.duplicateThreshold = threshold;
+            if (platform === 'telegram') {
+                user.telegramThreshold = threshold;
+            } else if (platform === 'twitter') {
+                user.twitterThreshold = threshold;
+            } else {
+                bot.sendMessage(chatId, "⚠️ Plateforme non reconnue. Utilisez 'telegram' ou 'twitter'.");
+                return;
+            }
             await user.save();
-            console.log(`Seuil de doublons mis à jour pour ${chatId} : ${threshold}`);
-            bot.sendMessage(chatId, `🔢 Seuil de doublons mis à jour à ${threshold}.`);
+            console.log(`Seuil de doublons mis à jour pour ${chatId} : ${platform} = ${threshold}`);
+            bot.sendMessage(chatId, `🔢 Seuil de doublons mis à jour pour ${platform} à ${threshold}.`);
         } else {
             console.log(`User not found: ${chatId}`);
             bot.sendMessage(chatId, "⚠️ Utilisateur non trouvé.");

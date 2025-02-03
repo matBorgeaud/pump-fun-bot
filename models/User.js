@@ -5,7 +5,8 @@ const userSchema = new mongoose.Schema({
     username: { type: String },
     createdAt: { type: Date, default: Date.now },
     ignoredAccounts: { type: [String], default: [] },
-    duplicateThreshold: { type: Number, default: 1 } // Ajouter ce champ
+    telegramThreshold: { type: Number, default: 1 },
+    twitterThreshold: { type: Number, default: 1 }
 });
 
 module.exports = mongoose.model("User", userSchema);
