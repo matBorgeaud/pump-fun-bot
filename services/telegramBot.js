@@ -287,4 +287,54 @@ bot.on("callback_query", async (callbackQuery) => {
     }
 });
 
-module.exports = { bot, sendTelegramAlertToUsers };
+const API_URL = "https://frontend-api.pump.fun/coins/latest";
+const MAX_RETRIES = 5; // Nombre maximum de tentatives
+const RETRY_DELAY = 1000; // Délai initial en ms
+
+const fetchAndStoreData = async () => {
+    let attempts = 0;
+
+    while (attempts < MAX_RETRIES) {
+        try {
+            const response = await axios.get(API_URL);
+            const { telegram, twitter, symbol } = response.data;
+
+            if (!telegram && !twitter) return;
+
+            // Vérifie si une alerte existe déjà
+            const query = {};
+            if (telegram) query.telegram = telegram;
+            if (twitter) query.twitter = twitter;
+            
+            const existingAlerts = await Alert.find({ $or: [query] });
+
+            // Stocker la nouvelle donnée
+            await Alert.create({ telegram, twitter });
+
+            if (existingAlerts.length > 0) {
+                const users = await User.find();
+                for (const user of users) {
+                    const telegramThreshold = user.telegramThreshold || 1;
+                    const twitterThreshold = user.twitterThreshold || 1;
+                    if ((telegram && existingAlerts.filter(alert => alert.telegram === telegram).length >= telegramThreshold) ||
+                        (twitter && existingAlerts.filter(alert => alert.twitter === twitter).length >= twitterThreshold)) {
+                        console.log(`🚨 Doublon détecté pour ${user.chatId} avec seuil Telegram ${telegramThreshold} et Twitter ${twitterThreshold} !`);
+                        sendTelegramAlertToUsers(`⚠️ Doublon trouvé !\nTelegram: ${telegram}\nTwitter: ${twitter}\nSymbol: ${symbol}`, telegram, twitter);
+                    }
+                }
+            }
+            return; // Si la requête réussit, sortir de la boucle
+        } catch (error) {
+            attempts++;
+            if (error.response && error.response.status === 503) {
+                console.error(`❌ Erreur lors de la récupération des données : ${error.response.status} ${error.response.statusText}. Tentative ${attempts} sur ${MAX_RETRIES}`);
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempts)); // Délai exponentiel
+            } else {
+                console.error("❌ Erreur lors de la récupération des données :", error.message);
+                break; // Sortir de la boucle pour les autres erreurs
+            }
+        }
+    }
+};
+
+module.exports = { bot, sendTelegramAlertToUsers, fetchAndStoreData };
