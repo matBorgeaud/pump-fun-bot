@@ -210,9 +210,8 @@ const sendTelegramAlertToUsers = async (message, telegram, twitter) => {
                 console.log(`Réponse de Telegram : ${JSON.stringify(response)}`);
             } catch (error) {
                 if (error.code === 'ETELEGRAM' && error.response && error.response.statusCode === 429) {
-                    const retryAfter = error.response.body.parameters.retry_after;
-                    console.log(`Rate limit hit. Retrying after ${retryAfter} seconds.`);
-                    await new Promise(resolve => setTimeout(resolve, (retryAfter + 1) * 1000));
+                    console.log(`Rate limit hit. Skipping message for ${user.chatId}.`);
+                    continue; // Skip to the next user
                 } else {
                     throw error;
                 }
